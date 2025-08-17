@@ -56,9 +56,14 @@ const server = http.createServer((req, res) => {
         })
         // Server Xử lý dữ liệu và trả kết quả lại cho client
         if (url == "/LOGIN") {
-            req.on("end", () => {
-                res.end(noi_dung_nhan)
-            })
+           req.on("end", () => {
+    let dataObj = JSON.parse(noi_dung_nhan);  // parse chuỗi JSON thành object
+    if (dataObj.Ten_Dang_nhap === "NV_1" && dataObj.Mat_khau === "NV_1") {
+      res.end("Login thành công");
+    } else {
+      res.end("Sai tài khoản hoặc mật khẩu");
+    }
+  });
         } else if (url == "/INSERT_USER") {
             req.on("end", () => {
                 res.end(noi_dung_nhan)
