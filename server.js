@@ -12,10 +12,11 @@ const port = process.env.PORT;
 
 // Tham chiếu thư viện MongoDB
 import db from "./libs/mongoDB.js"; 
-
+// Tham chiếu thư viện sendMail.js
+import sendMail from "./libs/sendMail.js";
 // Cấu hình Dịch vụ
 const server = http.createServer((req, res) => {
-    
+
     let method = req.method;
     let url = req.url;
     // result: là chuỗi, chuỗi JSON
@@ -35,15 +36,15 @@ const server = http.createServer((req, res) => {
         } else {
             res.writeHead(200, { "content-type": "text/json; charset=utf-8" });
             let collectionName = db.collectionNames[url.replace("/", "")];
-            if(collectionName){
+            if (collectionName) {
                 db.getAll(collectionName)
-                .then((result)=>{
-                    res.end(JSON.stringify(result));
-                })
-                .catch((err)=>{
-                    console.log(err);
-                })    
-            }else{
+                    .then((result) => {
+                        res.end(JSON.stringify(result));
+                    })
+                    .catch((err) => {
+                        console.log(err);
+                    })
+            } else {
                 res.end(JSON.stringify(result));
             }
         }
@@ -56,17 +57,100 @@ const server = http.createServer((req, res) => {
         })
         // Server Xử lý dữ liệu và trả kết quả lại cho client
         if (url == "/LOGIN") {
-           req.on("end", () => {
-    let dataObj = JSON.parse(noi_dung_nhan);  // parse chuỗi JSON thành object
-    if (dataObj.Ten_Dang_nhap === "NV_1" && dataObj.Mat_khau === "NV_1") {
-      res.end("Login thành công");
-    } else {
-      res.end("Sai tài khoản hoặc mật khẩu");
-    }
-  });
-        } else if (url == "/INSERT_USER") {
             req.on("end", () => {
-                res.end(noi_dung_nhan)
+                let kq = {
+                    "noi_dung": true
+                }
+                let user = JSON.parse(noi_dung_nhan);
+                let filter = {
+                    $and: [
+                        {
+                            "Ten_Dang_nhap": user.Ten_Dang_nhap
+                        },
+                        {
+                            "Mat_khau": user.Mat_khau
+                        }
+                    ]
+                }
+                db.getOne("user", filter).then((result) => {
+                    console.log(result)
+                    if (result) {
+                        kq.noi_dung = {
+                            Ho_ten: result.Ho_ten,
+                            Nhom_Nguoi_dung: result.Nhom_Nguoi_dung
+                        }
+                        res.end(JSON.stringify(kq));
+                    } else {
+                        kq.noi_dung = false;
+                        res.end(JSON.stringify(kq));
+                    }
+
+                }).catch((err) => {
+                    console.error(`Error Login:`, err);
+                    kq.noi_dung = false;
+                    res.end(JSON.stringify(kq));
+                })
+
+            })
+
+        } else if (url == "/DATHANG") {
+            req.on("end", () => {
+                // Server xử lý dữ liệu từ Client gởi về trả kết quả về lại cho Client
+                let dsDathang = JSON.parse(noi_dung_nhan);
+                let kq = { "noidung": [] };
+                dsDathang.forEach((item) => {
+                    let filter = {
+                        "Ma_so": item.key
+                    }
+                    let collectionName = (item.nhom == 1) ? "tivi" : (item.nhom == 2) ? "mobile" : "food";
+                    db.getOne(collectionName, filter).then((result) => {
+                        item.dathang.So_Phieu_Dat = result.Danh_sach_Phieu_Dat.length + 1;
+                        result.Danh_sach_Phieu_Dat.push(item.dathang);
+                        // Update
+                        let capnhat = {
+                            $set: { Danh_sach_Phieu_Dat: result.Danh_sach_Phieu_Dat }
+                        }
+                        let obj = {
+                            "Ma_so": result.Ma_so,
+                            "Update": true
+                        }
+                        db.updateOne(collectionName, filter, capnhat).then((result) => {
+                            if (result.modifiedCount == 0) {
+                                obj.Update = false
+
+                            }
+                            kq.noidung.push(obj);
+                            console.log(kq.noidung)
+                            if (kq.noidung.length == dsDathang.length) {
+                                res.end(JSON.stringify(kq));
+                            }
+                        }).catch((err) => {
+                            console.log(err);
+                        })
+                    }).catch((err) => {
+                        console.log(err)
+                    })
+
+                })
+            })
+
+        } else if (url == "/LIENHE") {
+            req.on("end", () => {
+                let thongTin = JSON.parse(noi_dung_nhan);
+                let _subject = thongTin.tieude;
+                let _body = thongTin.noidung;
+                let kq = { "noi_dung": true };
+                let _from = "admin@shop303.com.vn";
+                let _to = "ltv.javascript@gmail.com";
+                _body += "<hr>";
+                sendMail.Goi_Thu(_from, _to, _subject, _body).then((result) => {
+                    console.log(result);
+                    res.end(JSON.stringify(kq));
+                }).catch((err) => {
+                    console.log(err);
+                    kq.noi_dung = false;
+                    res.end(JSON.stringify(kq));
+                })
             })
         } else {
             res.end(result)
@@ -109,5 +193,6 @@ const server = http.createServer((req, res) => {
 server.listen(port, () => {
     console.log(`Dịch vụ thực thi tại địa chỉ: http://localhost:${port}`)
 })
+
 
 
