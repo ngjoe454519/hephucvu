@@ -141,7 +141,7 @@ const server = http.createServer((req, res) => {
                 let _body = thongTin.noidung;
                 let kq = { "noi_dung": true };
                 let _from = "admin@shop303.com.vn";
-                let _to = "ltv.javascript@gmail.com";
+                let _to = "dmcl.sadec@gmail.com";
                 _body += "<hr>";
                 sendMail.Goi_Thu(_from, _to, _subject, _body).then((result) => {
                     console.log(result);
